@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import './index.css';
+/* import React, { useState, useEffect } from 'react';
 import { Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -165,6 +166,147 @@ function App() {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+export default App;
+
+*/
+
+import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
+
+// AI-like categorization function
+const categorizeData = (item) => {
+  const lowercaseKeys = Object.keys(item).map(key => key.toLowerCase());
+  
+  const getCategory = (keywords) => {
+    return lowercaseKeys.find(key => keywords.some(keyword => key.includes(keyword)));
+  };
+
+  const gradeLevel = getCategory(['grade', 'class', 'year']) || 'Grade Level';
+  const cost = getCategory(['cost', 'price', 'fee']) || 'Cost';
+  const deadline = getCategory(['deadline', 'due date', 'application close']) || 'Application Deadline';
+  const eligibility = getCategory(['eligibility', 'requirements', 'qualifications']) || 'Eligibility Requirements';
+
+  return {
+    'Grade Level': item[gradeLevel] || 'N/A',
+    'Cost': item[cost] || 'N/A',
+    'Application Deadline': item[deadline] || 'N/A',
+    'Eligibility Requirements': item[eligibility] || 'N/A',
+    ...item
+  };
+};
+
+const FileUpload = ({ onFileUpload }) => (
+  <div className="mb-4">
+    <input
+      type="file"
+      accept=".xlsx, .xls"
+      onChange={onFileUpload}
+      multiple
+      className="block w-full text-sm text-gray-500
+        file:mr-4 file:py-2 file:px-4
+        file:rounded-full file:border-0
+        file:text-sm file:font-semibold
+        file:bg-blue-50 file:text-blue-700
+        hover:file:bg-blue-100"
+    />
+  </div>
+);
+
+const CategoryFilter = ({ categories, selectedCategory, onCategoryChange }) => (
+  <div className="mb-4">
+    <select
+      value={selectedCategory}
+      onChange={(e) => onCategoryChange(e.target.value)}
+      className="block w-full mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+    >
+      <option value="">All Categories</option>
+      {categories.map((category, index) => (
+        <option key={index} value={category}>{category}</option>
+      ))}
+    </select>
+  </div>
+);
+
+const DataTable = ({ data }) => {
+  const categories = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements'];
+  const otherColumns = Object.keys(data[0] || {}).filter(key => !categories.includes(key));
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white">
+        <thead className="bg-gray-100">
+          <tr>
+            {categories.concat(otherColumns).map((key, index) => (
+              <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {key}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {data.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {categories.concat(otherColumns).map((key, cellIndex) => (
+                <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {row[key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+function App() {
+  const [data, setData] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const categories = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements'];
+
+  const handleFileUpload = (event) => {
+    const files = Array.from(event.target.files);
+    
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const workbook = XLSX.read(e.target.result, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        const categorizedData = jsonData.map(categorizeData);
+        setData(prevData => [...prevData, ...categorizedData]);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const filteredData = selectedCategory
+    ? data.filter(item => item[selectedCategory] !== 'N/A')
+    : data;
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-4">Internship Opportunity Analyzer</h1>
+      
+      <FileUpload onFileUpload={handleFileUpload} />
+      
+      <CategoryFilter
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+      />
+      
+      {filteredData.length > 0 ? (
+        <DataTable data={filteredData} />
+      ) : (
+        <p>No data to display. Please upload an XLSX file.</p>
+      )}
     </div>
   );
 }
