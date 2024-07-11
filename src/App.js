@@ -1,41 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-const Input = ({ type, placeholder, value, onChange }) => (
-  <input
-    type={type}
-    placeholder={placeholder}
-    value={value}
-    onChange={onChange}
-    className="w-full px-3 py-2 border rounded-md"
-  />
-);
-
-const Slider = ({ min, max, value, onChange, label }) => (
-  <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700">{label}: {value}</label>
+const FilterInput = ({ placeholder, value, onChange, onClear }) => (
+  <div className="relative">
     <input
-      type="range"
-      min={min}
-      max={max}
+      type="text"
+      placeholder={placeholder}
       value={value}
       onChange={onChange}
-      className="w-full"
+      className="w-full px-3 py-2 border rounded-md pr-8"
     />
+    {value && (
+      <button
+        onClick={onClear}
+        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+      >
+        ×
+      </button>
+    )}
   </div>
 );
 
-const Card = ({ title, details, state, price, subject, url }) => (
-  <div className="border rounded-md p-4 mb-4 bg-white shadow-md hover:shadow-lg transition-shadow duration-300">
-    <h3 className="text-lg font-semibold text-blue-600">{title}</h3>
-    <p className="text-sm text-gray-600">{details}</p>
-    <div className="mt-2 grid grid-cols-2 gap-2">
-      <span className="text-sm"><strong>State:</strong> {state}</span>
-      <span className="text-sm"><strong>Price:</strong> {price}</span>
-      <span className="text-sm"><strong>Subject:</strong> {subject}</span>
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline">Learn More</a>
+const InternshipCard = ({ internship }) => (
+  <div className="bg-white p-4 rounded-lg shadow-md mb-4 hover:shadow-lg transition-shadow duration-300">
+    <h3 className="text-lg font-semibold text-blue-600">{internship.Name}</h3>
+    <p className="text-sm text-gray-600 mb-2">{internship.Details}</p>
+    <div className="grid grid-cols-2 gap-2 text-sm">
+      <span><strong>State:</strong> {internship.State}</span>
+      <span><strong>Price:</strong> {internship.Price}</span>
+      <span><strong>Subject:</strong> {internship.Subject}</span>
+      <span><strong>Grade Level:</strong> {internship.GradeLevel}</span>
     </div>
+    <a 
+      href={internship.URL} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="text-blue-500 hover:underline mt-2 inline-block"
+    >
+      Learn More
+    </a>
   </div>
 );
 
@@ -48,8 +51,7 @@ function App() {
     state: '',
     price: '',
     subject: '',
-    url: '',
-    gradeLevel: 9,
+    gradeLevel: [9, 12],
   });
 
   useEffect(() => {
@@ -59,7 +61,7 @@ function App() {
       internship.State.toLowerCase().includes(filters.state.toLowerCase()) &&
       internship.Price.toLowerCase().includes(filters.price.toLowerCase()) &&
       internship.Subject.toLowerCase().includes(filters.subject.toLowerCase()) &&
-      internship.URL.toLowerCase().includes(filters.url.toLowerCase())
+      (internship.GradeLevel >= filters.gradeLevel[0] && internship.GradeLevel <= filters.gradeLevel[1])
     );
     setFilteredInternships(filtered);
   }, [internships, filters]);
@@ -75,7 +77,12 @@ function App() {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      setInternships(jsonData);
+      const processedData = jsonData.map(item => ({
+        ...item,
+        GradeLevel: parseInt(item.GradeLevel) || 9
+      }));
+
+      setInternships(processedData);
     };
 
     reader.readAsArrayBuffer(file);
@@ -85,13 +92,16 @@ function App() {
     setFilters(prevFilters => ({ ...prevFilters, [name]: value }));
   };
 
+  const clearFilter = (name) => {
+    setFilters(prevFilters => ({ ...prevFilters, [name]: '' }));
+  };
+
   return (
-    <div className="p-4 max-w-4xl mx-auto bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">XLSX Internship Finder</h1>
+    <div className="p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
+      <h1 className="text-4xl font-bold mb-8 text-center text-blue-600">XLSX Internship Finder</h1>
       
-      <div className="mb-6">
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
         <label htmlFor="file-upload" className="cursor-pointer flex items-center justify-center w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-300">
-          <Upload className="mr-2" size={20} />
           Upload XLSX File
         </label>
         <input 
@@ -103,66 +113,61 @@ function App() {
         />
       </div>
       
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h2 className="text-xl font-semibold mb-4">Filters</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            type="text"
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          Filters
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+          <FilterInput
             placeholder="Filter by Name"
             value={filters.name}
             onChange={(e) => handleFilterChange('name', e.target.value)}
+            onClear={() => clearFilter('name')}
           />
-          <Input
-            type="text"
+          <FilterInput
             placeholder="Filter by Details"
             value={filters.details}
             onChange={(e) => handleFilterChange('details', e.target.value)}
+            onClear={() => clearFilter('details')}
           />
-          <Input
-            type="text"
+          <FilterInput
             placeholder="Filter by State"
             value={filters.state}
             onChange={(e) => handleFilterChange('state', e.target.value)}
+            onClear={() => clearFilter('state')}
           />
-          <Input
-            type="text"
+          <FilterInput
             placeholder="Filter by Price"
             value={filters.price}
             onChange={(e) => handleFilterChange('price', e.target.value)}
+            onClear={() => clearFilter('price')}
           />
-          <Input
-            type="text"
+          <FilterInput
             placeholder="Filter by Subject"
             value={filters.subject}
             onChange={(e) => handleFilterChange('subject', e.target.value)}
-          />
-          <Input
-            type="text"
-            placeholder="Filter by URL"
-            value={filters.url}
-            onChange={(e) => handleFilterChange('url', e.target.value)}
+            onClear={() => clearFilter('subject')}
           />
         </div>
-        <Slider 
-          min={9} 
-          max={12} 
-          value={filters.gradeLevel} 
-          onChange={(e) => handleFilterChange('gradeLevel', parseInt(e.target.value))}
-          label="Maximum Grade Level"
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Grade Level Range: {filters.gradeLevel[0]} - {filters.gradeLevel[1]}
+          </label>
+          <input
+            type="range"
+            min={9}
+            max={12}
+            step={1}
+            value={filters.gradeLevel[1]}
+            onChange={(e) => handleFilterChange('gradeLevel', [filters.gradeLevel[0], parseInt(e.target.value)])}
+            className="w-full"
+          />
+        </div>
       </div>
       
-      <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredInternships.map((internship, index) => (
-          <Card
-            key={index}
-            title={internship.Name}
-            details={internship.Details}
-            state={internship.State}
-            price={internship.Price}
-            subject={internship.Subject}
-            url={internship.URL}
-          />
+          <InternshipCard key={index} internship={internship} />
         ))}
       </div>
     </div>
