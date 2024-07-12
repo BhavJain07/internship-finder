@@ -1,4 +1,5 @@
 import './index.css';
+import Anthropic from '@anthropic-ai/sdk';
 /* import React, { useState, useEffect } from 'react';
 import { Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
