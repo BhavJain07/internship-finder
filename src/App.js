@@ -1,5 +1,8 @@
 import './index.css';
 import Anthropic from '@anthropic-ai/sdk';
+const anthropic = new Anthropic({
+  apiKey: process.env.REACT_APP_ANTHROPIC_API_KEY,
+});
 /* import React, { useState, useEffect } from 'react';
 import { Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -178,7 +181,7 @@ export default App;
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 
-// AI-like categorization function
+// Basic cat function
 const categorizeData = (item) => {
   const lowercaseKeys = Object.keys(item).map(key => key.toLowerCase());
   
@@ -313,3 +316,54 @@ function App() {
 }
 
 export default App;
+
+
+
+
+/*
+
+CLAUDE BASED AI CATEGORIZATION FUNCTION
+
+const categorizeData = async (item) => {
+  const prompt = `
+Human: Categorize the following data into Grade Level, Cost, Application Deadline, and Eligibility Requirements. If a category is not applicable, use "N/A". Return only the JSON object with the categorized information.
+
+Data:
+${JSON.stringify(item)}
+
+Assistant: Here's the categorized data:
+
+{
+  "Grade Level": "N/A",
+  "Cost": "N/A",
+  "Application Deadline": "N/A",
+  "Eligibility Requirements": "N/A"
+}
+
+CLAUDE BASED AI HANDLEFILEUPLOAD FUNCTION
+
+const handleFileUpload = async (event) => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    const files = Array.from(event.target.files);
+    
+    for (const file of files) {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      const categorizedData = await Promise.all(jsonData.map(categorizeData));
+      setData(prevData => [...prevData, ...categorizedData]);
+    }
+  } catch (error) {
+    setError("Error processing file. Please try again.");
+    console.error("File upload error:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+*/
