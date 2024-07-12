@@ -5,6 +5,7 @@ const anthropic = new Anthropic({
 });
 //insert API key above.
 
+//OLD CODE BELOW
 
 /* import React, { useState, useEffect } from 'react';
 import { Upload } from 'lucide-react';
@@ -180,6 +181,7 @@ function App() {
 export default App;
 
 */
+//DO NOT UNCOMMENT ^^ CODE
 
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
