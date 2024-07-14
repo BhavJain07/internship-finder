@@ -1,8 +1,10 @@
 import './index.css';
-import Anthropic from '@anthropic-ai/sdk';
-const anthropic = new Anthropic({
-  apiKey: process.env.REACT_APP_ANTHROPIC_API_KEY,
-});
+// import Anthropic from '@anthropic-ai/sdk';
+// const anthropic = new Anthropic({
+//   apiKey: process.env.REACT_APP_ANTHROPIC_API_KEY,
+// });
+import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 //insert API key above.
 
 //OLD CODE BELOW

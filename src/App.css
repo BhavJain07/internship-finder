@@ -1,10 +1,18 @@
 .App {
   text-align: center;
+  font-family: 'Arial', sans-serif;
+  background-color: #f0f2f5;
+  padding: 20px;
 }
 
 .App-logo {
   height: 40vmin;
   pointer-events: none;
+  transition: transform 0.2s ease-in-out;
+}
+
+.App-logo:hover {
+  transform: scale(1.1);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -22,10 +30,18 @@
   justify-content: center;
   font-size: calc(10px + 2vmin);
   color: white;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .App-link {
   color: #61dafb;
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.App-link:hover {
+  color: #21a1f1;
 }
 
 @keyframes App-logo-spin {
