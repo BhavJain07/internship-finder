@@ -183,8 +183,7 @@ export default App;
 */
 //DO NOT UNCOMMENT ^^ CODE
 
-import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+
 
 // Basic cat function
 const categorizeData = (item) => {
