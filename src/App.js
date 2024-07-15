@@ -211,7 +211,7 @@ function App() {
           } catch (error) {
             reject(error);
           }
-        };
+        });
         reader.onerror = reject;
         reader.readAsArrayBuffer(file);
       });
