@@ -276,29 +276,120 @@ const DataTable = ({ data }) => {
 function App() {
   const [data, setData] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const categories = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements'];
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(250); // Default to 250 items per page
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleFileUpload = (event) => {
+  const categories = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements', 'Program Overview'];
+
+  const handleFileUpload = useCallback((event) => {
+    setIsLoading(true);
+    setError(null);
     const files = Array.from(event.target.files);
     
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
+    Promise.all(files.map(file => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
         const workbook = XLSX.read(e.target.result, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        
-        const categorizedData = jsonData.map(categorizeData);
-        setData(prevData => [...prevData, ...categorizedData]);
-      };
-      reader.readAsArrayBuffer(file);
+            const allSheetData = workbook.SheetNames.flatMap(sheetName => {
+              const worksheet = workbook.Sheets[sheetName];
+              
+              // Detect the header row
+              const range = XLSX.utils.decode_range(worksheet['!ref']);
+              let headerRowIndex = range.s.r;
+              let headers = [];
+              
+              for (let R = range.s.r; R <= range.e.r; ++R) {
+                const row = [];
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                  const cell_address = {c:C, r:R};
+                  const cell_ref = XLSX.utils.encode_cell(cell_address);
+                  if (worksheet[cell_ref]) {
+                    row.push(worksheet[cell_ref].v);
+                  }
+                }
+                if (row.some(cell => ['Program', 'Apply', 'Application Fee', 'Stipend', 'Grade Level'].includes(cell))) {
+                  headerRowIndex = R;
+                  headers = row;
+                  break;
+                }
+              }
+              
+              // Parse the data using the detected header row
+              const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                header: headers, 
+                range: headerRowIndex,
+                defval: 'N/A', 
+                raw: false 
+              });
+              
+              if (jsonData.length > 0) {
+                return jsonData.map(item => categorizeData(item, headers));
+              }
+              return [];
+            });
+            resolve(allSheetData);
+          } catch (error) {
+            reject(error);
+          }
+        });
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }))
+    .then(results => {
+      setData(prevData => [...prevData, ...results.flat()]);
+      setIsLoading(false);
+    })
+    .catch(error => {
+      setError("Error processing file(s). Please try again.");
+      console.error("File upload error:", error);
+      setIsLoading(false);
     });
+  }, []);
+
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
   };
 
-  const filteredData = selectedCategory
-    ? data.filter(item => item[selectedCategory] !== 'N/A')
-    : data;
+  const filteredAndSortedData = useMemo(() => {
+    let result = data;
+    if (selectedCategory) {
+      result = result.filter(item => item[selectedCategory] && item[selectedCategory] !== 'N/A');
+    }
+    if (searchTerm) {
+      result = result.filter(item => 
+        Object.values(item).some(value => 
+          value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+    }
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+  };
+
+  const handleExport = () => {
+    const ws = XLSX.utils.json_to_sheet(filteredAndSortedData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Filtered Data");
+    XLSX.writeFile(wb, "filtered_data.xlsx");
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -306,14 +397,21 @@ function App() {
       
       <FileUpload onFileUpload={handleFileUpload} />
       
-      <CategoryFilter
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-      />
+        <CategoryFilter
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+        />
       
-      {filteredData.length > 0 ? (
-        <DataTable data={filteredData} />
+      {paginatedData.length > 0 ? (
+        <>
+          <DataTable data={paginatedData} onSort={handleSort} />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </>
       ) : (
         <p>No data to display. Please upload an XLSX file.</p>
       )}
