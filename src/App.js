@@ -2,39 +2,6 @@ import './index.css';
 import React, { useState, useCallback, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 
-// Improved categorization function
-const categorizeData = (item, headers) => {
-  const categorizedItem = {};
-  const keywordMap = {
-    'Grade Level': ['grade level', 'grade', 'class', 'year', 'level'],
-    'Cost': ['cost', 'price', 'fee', 'tuition', 'application fee'],
-    'Application Deadline': ['deadline', 'due date', 'application close', 'apply by'],
-    'Eligibility Requirements': ['eligibility', 'requirements', 'qualifications', 'who can apply'],
-    'Program Overview': ['program', 'overview', 'description', 'summary', 'about'],
-    'Stipend': ['stipend', 'salary', 'pay', 'compensation'],
-    'Apply': ['apply', 'application', 'link']
-  };
-
-  headers.forEach(header => {
-    const lowerHeader = header.toLowerCase();
-    let categorized = false;
-
-    for (const [category, keywords] of Object.entries(keywordMap)) {
-      if (keywords.some(keyword => lowerHeader.includes(keyword))) {
-        categorizedItem[category] = item[header];
-        categorized = true;
-        break;
-      }
-    }
-
-    if (!categorized && item[header] !== 'N/A') {
-      categorizedItem[header] = item[header];
-    }
-  });
-
-  return categorizedItem;
-};
-
 const FileUpload = ({ onFileUpload }) => (
   <div className="mb-4">
     <input
@@ -97,19 +64,14 @@ const PageSizeSelector = ({ pageSize, onPageSizeChange }) => (
 const DataTable = ({ data, onSort }) => {
   if (data.length === 0) return null;
 
-  const allHeaders = Array.from(new Set(data.flatMap(Object.keys)));
-  const priorityHeaders = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements', 'Program Overview'];
-  const sortedHeaders = [
-    ...priorityHeaders.filter(header => allHeaders.includes(header)),
-    ...allHeaders.filter(header => !priorityHeaders.includes(header))
-  ];
+  const headers = Object.keys(data[0]);
 
   return (
     <div className="overflow-x-auto shadow-md sm:rounded-lg">
       <table className="w-full text-sm text-left text-gray-500">
         <thead className="text-xs text-gray-700 uppercase bg-gray-50">
           <tr>
-            {sortedHeaders.map((header, index) => (
+            {headers.map((header, index) => (
               <th key={index} className="px-6 py-3 cursor-pointer hover:bg-gray-100" onClick={() => onSort(header)}>
                 {header}
                 <span className="ml-1">↕️</span>
@@ -120,7 +82,7 @@ const DataTable = ({ data, onSort }) => {
         <tbody>
           {data.map((row, rowIndex) => (
             <tr key={rowIndex} className="bg-white border-b hover:bg-gray-50">
-              {sortedHeaders.map((header, cellIndex) => (
+              {headers.map((header, cellIndex) => (
                 <td key={cellIndex} className="px-6 py-4 whitespace-nowrap">
                   {row[header] || ''}
                 </td>
@@ -153,11 +115,9 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(250); // Default to 250 items per page
+  const [pageSize, setPageSize] = useState(250);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const categories = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements', 'Program Overview'];
 
   const handleFileUpload = useCallback((event) => {
     setIsLoading(true);
@@ -172,56 +132,48 @@ function App() {
             const workbook = XLSX.read(e.target.result, { type: 'array' });
             const allSheetData = workbook.SheetNames.flatMap(sheetName => {
               const worksheet = workbook.Sheets[sheetName];
-              
-              // Detect the header row
-              const range = XLSX.utils.decode_range(worksheet['!ref']);
-              let headerRowIndex = range.s.r;
-              let headers = [];
-              
-              for (let R = range.s.r; R <= range.e.r; ++R) {
-                const row = [];
-                for (let C = range.s.c; C <= range.e.c; ++C) {
-                  const cell_address = {c:C, r:R};
-                  const cell_ref = XLSX.utils.encode_cell(cell_address);
-                  if (worksheet[cell_ref]) {
-                    row.push(worksheet[cell_ref].v);
-                  }
-                }
-                if (row.some(cell => ['Program', 'Apply', 'Application Fee', 'Stipend', 'Grade Level'].includes(cell))) {
-                  headerRowIndex = R;
-                  headers = row;
-                  break;
-                }
-              }
-              
-              // Parse the data using the detected header row
-              const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-                header: headers, 
-                range: headerRowIndex,
-                defval: 'N/A', 
-                raw: false 
+              const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                header: 1,
+                defval: '',
+                blankrows: false
               });
               
-              if (jsonData.length > 0) {
-                return jsonData.map(item => categorizeData(item, headers));
-              }
-              return [];
+              // Find the header row (first non-empty row)
+              const headerRowIndex = jsonData.findIndex(row => row.some(cell => cell !== ''));
+              if (headerRowIndex === -1) return [];
+
+              const headers = jsonData[headerRowIndex].map(header => header.trim());
+              
+              return jsonData.slice(headerRowIndex + 1).map(row => {
+                const item = {};
+                headers.forEach((header, index) => {
+                  if (row[index] !== undefined && row[index] !== '') {
+                    item[header] = row[index];
+                  }
+                });
+                return item;
+              });
             });
             resolve(allSheetData);
           } catch (error) {
             reject(error);
           }
-        });
+        };
         reader.onerror = reject;
         reader.readAsArrayBuffer(file);
       });
     }))
     .then(results => {
-      setData(prevData => [...prevData, ...results.flat()]);
+      const flattenedData = results.flat().filter(item => Object.keys(item).length > 0);
+      if (flattenedData.length === 0) {
+        setError("No valid data found in the uploaded file(s).");
+      } else {
+        setData(prevData => [...prevData, ...flattenedData]);
+      }
       setIsLoading(false);
     })
     .catch(error => {
-      setError("Error processing file(s). Please try again.");
+      setError(`Error processing file(s): ${error.message}`);
       console.error("File upload error:", error);
       setIsLoading(false);
     });
@@ -238,7 +190,7 @@ function App() {
   const filteredAndSortedData = useMemo(() => {
     let result = data;
     if (selectedCategory) {
-      result = result.filter(item => item[selectedCategory] && item[selectedCategory] !== 'N/A');
+      result = result.filter(item => item[selectedCategory] && item[selectedCategory] !== '');
     }
     if (searchTerm) {
       result = result.filter(item => 
@@ -270,7 +222,7 @@ function App() {
 
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize);
-    setCurrentPage(1); // Reset to first page when changing page size
+    setCurrentPage(1);
   };
 
   const handleExport = () => {
@@ -279,6 +231,10 @@ function App() {
     XLSX.utils.book_append_sheet(wb, ws, "Filtered Data");
     XLSX.writeFile(wb, "filtered_data.xlsx");
   };
+
+  const categories = useMemo(() => {
+    return Array.from(new Set(data.flatMap(Object.keys)));
+  }, [data]);
 
   return (
     <div className="container mx-auto p-4">
