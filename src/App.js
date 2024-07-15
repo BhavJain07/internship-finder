@@ -1,212 +1,38 @@
 import './index.css';
-// import Anthropic from '@anthropic-ai/sdk';
-// const anthropic = new Anthropic({
-//   apiKey: process.env.REACT_APP_ANTHROPIC_API_KEY,
-// });
-import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
-//insert API key above.
-
-//OLD CODE BELOW
-
-/* import React, { useState, useEffect } from 'react';
-import { Upload } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 
-const Input = ({ type, placeholder, value, onChange }) => (
-  <input
-    type={type}
-    placeholder={placeholder}
-    value={value}
-    onChange={onChange}
-    className="w-full px-3 py-2 border rounded-md"
-  />
-);
+// Improved categorization function
+const categorizeData = (item, headers) => {
+  const categorizedItem = {};
+  const keywordMap = {
+    'Grade Level': ['grade level', 'grade', 'class', 'year', 'level'],
+    'Cost': ['cost', 'price', 'fee', 'tuition', 'application fee'],
+    'Application Deadline': ['deadline', 'due date', 'application close', 'apply by'],
+    'Eligibility Requirements': ['eligibility', 'requirements', 'qualifications', 'who can apply'],
+    'Program Overview': ['program', 'overview', 'description', 'summary', 'about'],
+    'Stipend': ['stipend', 'salary', 'pay', 'compensation'],
+    'Apply': ['apply', 'application', 'link']
+  };
 
-const Slider = ({ min, max, value, onChange, label }) => (
-  <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700">{label}: {value}</label>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      onChange={onChange}
-      className="w-full"
-    />
-  </div>
-);
+  headers.forEach(header => {
+    const lowerHeader = header.toLowerCase();
+    let categorized = false;
 
-const Card = ({ title, details, state, price, subject, url }) => (
-  <div className="border rounded-md p-4 mb-4 bg-white shadow-md hover:shadow-lg transition-shadow duration-300">
-    <h3 className="text-lg font-semibold text-blue-600">{title}</h3>
-    <p className="text-sm text-gray-600">{details}</p>
-    <div className="mt-2 grid grid-cols-2 gap-2">
-      <span className="text-sm"><strong>State:</strong> {state}</span>
-      <span className="text-sm"><strong>Price:</strong> {price}</span>
-      <span className="text-sm"><strong>Subject:</strong> {subject}</span>
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline">Learn More</a>
-    </div>
-  </div>
-);
+    for (const [category, keywords] of Object.entries(keywordMap)) {
+      if (keywords.some(keyword => lowerHeader.includes(keyword))) {
+        categorizedItem[category] = item[header];
+        categorized = true;
+        break;
+      }
+    }
 
-function App() {
-  const [internships, setInternships] = useState([]);
-  const [filteredInternships, setFilteredInternships] = useState([]);
-  const [filters, setFilters] = useState({
-    name: '',
-    details: '',
-    state: '',
-    price: '',
-    subject: '',
-    url: '',
-    gradeLevel: 9,
+    if (!categorized && item[header] !== 'N/A') {
+      categorizedItem[header] = item[header];
+    }
   });
 
-  useEffect(() => {
-    const filtered = internships.filter(internship => 
-      internship.Name.toLowerCase().includes(filters.name.toLowerCase()) &&
-      internship.Details.toLowerCase().includes(filters.details.toLowerCase()) &&
-      internship.State.toLowerCase().includes(filters.state.toLowerCase()) &&
-      internship.Price.toLowerCase().includes(filters.price.toLowerCase()) &&
-      internship.Subject.toLowerCase().includes(filters.subject.toLowerCase()) &&
-      internship.URL.toLowerCase().includes(filters.url.toLowerCase())
-    );
-    setFilteredInternships(filtered);
-  }, [internships, filters]);
-
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-      setInternships(jsonData);
-    };
-
-    reader.readAsArrayBuffer(file);
-  };
-
-  const handleFilterChange = (name, value) => {
-    setFilters(prevFilters => ({ ...prevFilters, [name]: value }));
-  };
-
-  return (
-    <div className="p-4 max-w-4xl mx-auto bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">XLSX Internship Finder</h1>
-      
-      <div className="mb-6">
-        <label htmlFor="file-upload" className="cursor-pointer flex items-center justify-center w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-300">
-          <Upload className="mr-2" size={20} />
-          Upload XLSX File
-        </label>
-        <input 
-          id="file-upload" 
-          type="file" 
-          accept=".xlsx, .xls" 
-          onChange={handleFileUpload} 
-          className="hidden"
-        />
-      </div>
-      
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h2 className="text-xl font-semibold mb-4">Filters</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            type="text"
-            placeholder="Filter by Name"
-            value={filters.name}
-            onChange={(e) => handleFilterChange('name', e.target.value)}
-          />
-          <Input
-            type="text"
-            placeholder="Filter by Details"
-            value={filters.details}
-            onChange={(e) => handleFilterChange('details', e.target.value)}
-          />
-          <Input
-            type="text"
-            placeholder="Filter by State"
-            value={filters.state}
-            onChange={(e) => handleFilterChange('state', e.target.value)}
-          />
-          <Input
-            type="text"
-            placeholder="Filter by Price"
-            value={filters.price}
-            onChange={(e) => handleFilterChange('price', e.target.value)}
-          />
-          <Input
-            type="text"
-            placeholder="Filter by Subject"
-            value={filters.subject}
-            onChange={(e) => handleFilterChange('subject', e.target.value)}
-          />
-          <Input
-            type="text"
-            placeholder="Filter by URL"
-            value={filters.url}
-            onChange={(e) => handleFilterChange('url', e.target.value)}
-          />
-        </div>
-        <Slider 
-          min={9} 
-          max={12} 
-          value={filters.gradeLevel} 
-          onChange={(e) => handleFilterChange('gradeLevel', parseInt(e.target.value))}
-          label="Maximum Grade Level"
-        />
-      </div>
-      
-      <div>
-        {filteredInternships.map((internship, index) => (
-          <Card
-            key={index}
-            title={internship.Name}
-            details={internship.Details}
-            state={internship.State}
-            price={internship.Price}
-            subject={internship.Subject}
-            url={internship.URL}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export default App;
-
-*/
-//DO NOT UNCOMMENT ^^ CODE
-
-
-
-// Basic cat function
-const categorizeData = (item) => {
-  const lowercaseKeys = Object.keys(item).map(key => key.toLowerCase());
-  
-  const getCategory = (keywords) => {
-    return lowercaseKeys.find(key => keywords.some(keyword => key.includes(keyword)));
-  };
-
-  const gradeLevel = getCategory(['grade', 'class', 'year']) || 'Grade Level';
-  const cost = getCategory(['cost', 'price', 'fee']) || 'Cost';
-  const deadline = getCategory(['deadline', 'due date', 'application close']) || 'Application Deadline';
-  const eligibility = getCategory(['eligibility', 'requirements', 'qualifications']) || 'Eligibility Requirements';
-
-  return {
-    'Grade Level': item[gradeLevel] || 'N/A',
-    'Cost': item[cost] || 'N/A',
-    'Application Deadline': item[deadline] || 'N/A',
-    'Eligibility Requirements': item[eligibility] || 'N/A',
-    ...item
-  };
+  return categorizedItem;
 };
 
 const FileUpload = ({ onFileUpload }) => (
@@ -241,28 +67,62 @@ const CategoryFilter = ({ categories, selectedCategory, onCategoryChange }) => (
   </div>
 );
 
-const DataTable = ({ data }) => {
-  const categories = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements'];
-  const otherColumns = Object.keys(data[0] || {}).filter(key => !categories.includes(key));
+const SearchBar = ({ onSearch }) => (
+  <div className="mb-4">
+    <input
+      type="text"
+      placeholder="Search..."
+      onChange={(e) => onSearch(e.target.value)}
+      className="block w-full mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+    />
+  </div>
+);
+
+const PageSizeSelector = ({ pageSize, onPageSizeChange }) => (
+  <div className="mb-4">
+    <select
+      value={pageSize}
+      onChange={(e) => onPageSizeChange(Number(e.target.value))}
+      className="block w-full mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+    >
+      <option value={50}>50 per page</option>
+      <option value={100}>100 per page</option>
+      <option value={250}>250 per page</option>
+      <option value={500}>500 per page</option>
+      <option value={1000}>1000 per page</option>
+    </select>
+  </div>
+);
+
+const DataTable = ({ data, onSort }) => {
+  if (data.length === 0) return null;
+
+  const allHeaders = Array.from(new Set(data.flatMap(Object.keys)));
+  const priorityHeaders = ['Grade Level', 'Cost', 'Application Deadline', 'Eligibility Requirements', 'Program Overview'];
+  const sortedHeaders = [
+    ...priorityHeaders.filter(header => allHeaders.includes(header)),
+    ...allHeaders.filter(header => !priorityHeaders.includes(header))
+  ];
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full bg-white">
-        <thead className="bg-gray-100">
+    <div className="overflow-x-auto shadow-md sm:rounded-lg">
+      <table className="w-full text-sm text-left text-gray-500">
+        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
           <tr>
-            {categories.concat(otherColumns).map((key, index) => (
-              <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {key}
+            {sortedHeaders.map((header, index) => (
+              <th key={index} className="px-6 py-3 cursor-pointer hover:bg-gray-100" onClick={() => onSort(header)}>
+                {header}
+                <span className="ml-1">↕️</span>
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody>
           {data.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {categories.concat(otherColumns).map((key, cellIndex) => (
-                <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {row[key]}
+            <tr key={rowIndex} className="bg-white border-b hover:bg-gray-50">
+              {sortedHeaders.map((header, cellIndex) => (
+                <td key={cellIndex} className="px-6 py-4 whitespace-nowrap">
+                  {row[header] || ''}
                 </td>
               ))}
             </tr>
@@ -272,6 +132,20 @@ const DataTable = ({ data }) => {
     </div>
   );
 };
+
+const Pagination = ({ currentPage, totalPages, onPageChange }) => (
+  <div className="flex justify-center items-center space-x-2 mt-4">
+    {[...Array(totalPages).keys()].map(number => (
+      <button
+        key={number}
+        onClick={() => onPageChange(number + 1)}
+        className={`px-3 py-1 rounded ${currentPage === number + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+      >
+        {number + 1}
+      </button>
+    ))}
+  </div>
+);
 
 function App() {
   const [data, setData] = useState([]);
@@ -294,7 +168,8 @@ function App() {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
-        const workbook = XLSX.read(e.target.result, { type: 'array' });
+          try {
+            const workbook = XLSX.read(e.target.result, { type: 'array' });
             const allSheetData = workbook.SheetNames.flatMap(sheetName => {
               const worksheet = workbook.Sheets[sheetName];
               
@@ -336,7 +211,7 @@ function App() {
           } catch (error) {
             reject(error);
           }
-        });
+        };
         reader.onerror = reject;
         reader.readAsArrayBuffer(file);
       });
@@ -382,6 +257,20 @@ function App() {
         }
         return 0;
       });
+    }
+    return result;
+  }, [data, selectedCategory, searchTerm, sortConfig]);
+
+  const paginatedData = filteredAndSortedData.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   const handleExport = () => {
@@ -397,11 +286,27 @@ function App() {
       
       <FileUpload onFileUpload={handleFileUpload} />
       
+      {isLoading && <p className="text-blue-500">Loading data...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      
+      <div className="flex space-x-4 mb-4">
         <CategoryFilter
           categories={categories}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
         />
+        <SearchBar onSearch={setSearchTerm} />
+        <PageSizeSelector
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
+        />
+        <button
+          onClick={handleExport}
+          className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Export Data
+        </button>
+      </div>
       
       {paginatedData.length > 0 ? (
         <>
@@ -420,54 +325,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-/*
-
-CLAUDE BASED AI CATEGORIZATION FUNCTION
-
-const categorizeData = async (item) => {
-  const prompt = `
-Human: Categorize the following data into Grade Level, Cost, Application Deadline, and Eligibility Requirements. If a category is not applicable, use "N/A". Return only the JSON object with the categorized information.
-
-Data:
-${JSON.stringify(item)}
-
-Assistant: Here's the categorized data:
-
-{
-  "Grade Level": "N/A",
-  "Cost": "N/A",
-  "Application Deadline": "N/A",
-  "Eligibility Requirements": "N/A"
-}
-
-CLAUDE BASED AI HANDLEFILEUPLOAD FUNCTION
-
-const handleFileUpload = async (event) => {
-  setIsLoading(true);
-  setError(null);
-  try {
-    const files = Array.from(event.target.files);
-    
-    for (const file of files) {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      
-      const categorizedData = await Promise.all(jsonData.map(categorizeData));
-      setData(prevData => [...prevData, ...categorizedData]);
-    }
-  } catch (error) {
-    setError("Error processing file. Please try again.");
-    console.error("File upload error:", error);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-*/
